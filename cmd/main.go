@@ -26,7 +26,7 @@ func main() {
 	if strings.Contains(body, "カートに入れる") {
 		fmt.Println(fmt.Sprintf("url= %s は販売中だよ", url))
 	} else {
-		r := regexp.MustCompile(`次回の販売は\d+月末頃を予定しております。`)
+		r := regexp.MustCompile(`次回の販売は\d+月末.+を予定しております。`)
 		matchStrings := r.FindAllString(body, -1)
 		fmt.Println(fmt.Sprintf("url= %s は売り切れ中...%s", url, matchStrings[0]))
 	}
