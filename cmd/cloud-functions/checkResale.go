@@ -2,7 +2,6 @@ package p
 
 import (
 	"context"
-	"encoding/json"
 	"firebase.google.com/go"
 	"firebase.google.com/go/messaging"
 	"fmt"
@@ -15,72 +14,64 @@ import (
 	"strings"
 )
 
-func CheckResale(w http.ResponseWriter, r *http.Request) {
+// PubSubMessage is the payload of a Pub/Sub event. Please refer to the docs for
+// additional information regarding Pub/Sub events.
+type PubSubMessage struct {
+	Data []byte `json:"data"`
+}
+
+func CheckResale(ctx context.Context, m PubSubMessage) error {
 	// Use the application default credentials
-	ctx := context.Background()
-	conf := &firebase.Config{ProjectID: "github-api-app-2acb5"}
-	app, err := firebase.NewApp(ctx, conf)
+	app, err := InitFirebase("github-api-app-2acb5", ctx)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	client, err := app.Firestore(ctx)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	defer client.Close()
 
 	url := "https://grips-outdoor.jp/?pid=76851971"
 	resp, err := http.Get(url)
 	if err != nil {
-		println(err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(transform.NewReader(resp.Body, japanese.EUCJP.NewDecoder()))
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	type d struct {
-		OnSale  bool   `json:"onSale"`
-		Message string `json:"message"`
-	}
-	var response d
 	var msg string
 	body := string(b)
 	if strings.Contains(body, "カートに入れる") {
 		msg = fmt.Sprintf("url= %s は販売中だよ", url)
-		response = d{true, msg}
 	} else {
 		r := regexp.MustCompile(`次回の販売は\d+月末.+を予定しております。`)
 		matchStrings := r.FindAllString(body, -1)
 		msg = fmt.Sprintf("url= %s は売り切れ中...%s", url, matchStrings[0])
-		response = d{false, msg}
-	}
-	e, err := json.Marshal(response)
-	if err != nil {
-		fmt.Fprint(w, err)
-		return
 	}
 
 	doc := client.Collection("pushTokens").Doc("1")
 	log.Println(*doc)
 	docsnap, err := doc.Get(ctx)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	type PushToken struct {
 		Token string `firestore:"token"`
 	}
 	var pushToken PushToken
 	if err := docsnap.DataTo(&pushToken); err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	fcmService, err := app.Messaging(ctx)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	webpush := new(messaging.WebpushConfig)
 	webpush.Notification = &messaging.WebpushNotification{
@@ -92,8 +83,15 @@ func CheckResale(w http.ResponseWriter, r *http.Request) {
 		Webpush: webpush,
 	})
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
-	fmt.Fprint(w, string(e))
+	log.Println(string(m.Data))
+	return nil
+}
+
+func InitFirebase(pID string, ctx context.Context) (*firebase.App, error) {
+	conf := &firebase.Config{ProjectID: pID}
+	app, err := firebase.NewApp(ctx, conf)
+	return app, err
 }
