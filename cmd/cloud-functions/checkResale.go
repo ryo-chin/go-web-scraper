@@ -49,11 +49,11 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 	var msg string
 	body := string(b)
 	if strings.Contains(body, "カートに入れる") {
-		msg = fmt.Sprintf("url= %s は販売中だよ", url)
+		msg = "販売中だよ"
 	} else {
 		r := regexp.MustCompile(`次回の販売は\d+月末.+を予定しております。`)
 		matchStrings := r.FindAllString(body, -1)
-		msg = fmt.Sprintf("url= %s は売り切れ中...%s", url, matchStrings[0])
+		msg = fmt.Sprintf("売り切れ中...%s", matchStrings[0])
 	}
 
 	docs := client.Collection("pushTokens").Limit(10).Documents(ctx)
@@ -75,6 +75,9 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 		webpush.Notification = &messaging.WebpushNotification{
 			Title: "再販売通知",
 			Body:  msg,
+		}
+		webpush.FcmOptions = &messaging.WebpushFcmOptions{
+			Link: url,
 		}
 		msgs = append(msgs, &messaging.Message{
 			Token:   pushToken.Token,
