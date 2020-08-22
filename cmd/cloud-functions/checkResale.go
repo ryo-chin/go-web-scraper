@@ -50,13 +50,20 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 	}
 
 	var msg string
+	var onSale bool
 	body := string(b)
 	if strings.Contains(body, "カートに入れる") {
-		msg = "販売中だよ"
+		msg = fmt.Sprintf("販売中です!!売り切れる前にどうぞ!!\n%s", url)
+		onSale = true
 	} else {
 		r := regexp.MustCompile(`次回の販売は\d+月末.+を予定しております。`)
 		matchStrings := r.FindAllString(body, -1)
 		msg = fmt.Sprintf("売り切れ中...%s", matchStrings[0])
+		onSale = false
+	}
+	if !onSale {
+		log.Println(fmt.Sprintf("exit because not on sale. msg=%s", msg))
+		os.Exit(0)
 	}
 
 	docs := client.Collection("pushTokens").Limit(10).Documents(ctx)
@@ -104,8 +111,6 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 		return withStack(err)
 	}
 	handlePushResponse(res)
-
-	log.Println(string(m.Data))
 	return nil
 }
 
