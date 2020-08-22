@@ -2,6 +2,7 @@ package p
 
 import (
 	"context"
+	"encoding/json"
 	"firebase.google.com/go"
 	"firebase.google.com/go/messaging"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -62,6 +65,13 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 		return withStack(err)
 	}
 
+	// Slack WebHook通知
+	err = pushToSlack(msg)
+	if err != nil {
+		log.Println(fmt.Sprintf("slack push is failed. err=%+v", err))
+	}
+
+	// FCMプッシュ通知
 	var msgs []*messaging.Message
 	for _, docsnap := range snapshots {
 		type PushToken struct {
@@ -112,4 +122,25 @@ func InitFirebase(pID string, ctx context.Context) (*firebase.App, error) {
 	conf := &firebase.Config{ProjectID: pID}
 	app, err := firebase.NewApp(ctx, conf)
 	return app, err
+}
+
+func pushToSlack(msg string) (err error) {
+	webhookURL := os.Getenv("RESALE_SLACK_WEBHOOK_URL")
+	if webhookURL == "" {
+		return errors.New("WebHookURL is not exists")
+	}
+	p, err := json.Marshal(SlackMessage{Text: msg})
+	if err != nil {
+		return err
+	}
+	resp, err := http.PostForm(webhookURL, url.Values{"payload": {string(p)}})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+type SlackMessage struct {
+	Text string `json:"text"`
 }
