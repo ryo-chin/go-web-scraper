@@ -63,7 +63,7 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 	}
 	if !onSale {
 		log.Println(fmt.Sprintf("exit because not on sale. msg=%s", msg))
-		os.Exit(0)
+		return nil
 	}
 
 	docs := client.Collection("pushTokens").Limit(10).Documents(ctx)
