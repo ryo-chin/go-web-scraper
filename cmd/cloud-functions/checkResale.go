@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -56,9 +55,7 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 		msg = fmt.Sprintf("販売中です!!売り切れる前にどうぞ!!\n%s", url)
 		onSale = true
 	} else {
-		r := regexp.MustCompile(`次回の販売は\d+月末.+を予定しております。`)
-		matchStrings := r.FindAllString(body, -1)
-		msg = fmt.Sprintf("売り切れ中...%s", matchStrings[0])
+		msg = fmt.Sprintf("売り切れ中...")
 		onSale = false
 	}
 	if !onSale {
