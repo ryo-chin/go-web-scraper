@@ -36,7 +36,7 @@ func CheckResale(ctx context.Context, m PubSubMessage) error {
 	}
 	defer client.Close()
 
-	url := "https://grips-outdoor.jp/?pid=76851971"
+	url := "https://grips-outdoor.jp/?pid=124316122"
 	resp, err := http.Get(url)
 	if err != nil {
 		return withStack(err)
